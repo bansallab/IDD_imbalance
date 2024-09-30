@@ -1,0 +1,614 @@
+---
+title: "citation regressions"
+author: "Juliana Taube"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r load packages, echo = FALSE, include = FALSE}
+library(tidyverse)
+library(gamlss)
+library(stargazer)
+library(ggpubr)
+```
+
+```{r create data}
+### data functions
+is_self_cite <- function(bib_first, bib_last, og_first, og_last){
+  # bib_first and _last are first and last authors of cited paper
+  # og_first and _last are first and last authors of citing paper
+  if(is.na(bib_first) | is.na(bib_last) | is.na(og_first) | is.na(og_last)){
+    return(NA)
+  }else{
+    if(tolower(og_first) %in% c(tolower(bib_first), tolower(bib_last)) | 
+       tolower(og_last) %in% c(tolower(bib_first), tolower(bib_last))){
+      return(1)
+    }else{
+      return(0)
+    }
+  }
+}
+
+who_self_cites <- function(bib_first, bib_last, og_first, og_last){
+  # bib_first and _last are first and last authors of cited paper
+  # og_first and _last are first and last authors of citing paper
+  
+  if(is.na(bib_first) | is.na(bib_last) | is.na(og_first) | is.na(og_last)){
+    return(NA)
+  }else if(tolower(og_first) %in% c(tolower(bib_first), tolower(bib_last))){
+       return(1) # FA self cites
+  }else if(tolower(og_last) %in% c(tolower(bib_first), tolower(bib_last))){
+      return(2) # LA self cites
+  }else{
+      return(0)
+    }
+}
+
+
+#### read in data ####
+article_data <- read_csv("highlycited/df9_articledata_0.7.csv") %>% 
+  mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north))
+  #mutate(Country = ifelse(Country %in% c("england", "scotland", "wales"), "uk", Country))
+
+authorship <- read_csv("highlycited/df9_consensus_authorship.csv") %>% 
+  dplyr::select(UT) %>% 
+  left_join(article_data, by = "UT") %>%
+  ungroup() 
+
+citation <- read_csv("highlycited/df9_consensus_citation.csv") %>% 
+  dplyr::select(-PY) %>% 
+  # filter to only include citations of valid citing articles
+  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
+             by = "in_bib_of_UT") %>%
+  # join with cited article data
+  inner_join(article_data, by = "UT") %>% 
+  # link citation articles to their source bibliography information
+  left_join(article_data %>% 
+              rename(in_bib_of_AG = AG,
+                     in_bib_of_ARbin_ethni = ARbin_ethni,
+                     in_bib_of_UT = UT,
+                     in_bib_of_first_auth = first_auth,
+                     in_bib_of_last_auth = last_auth,
+                     in_bib_of_country = Country,
+                     in_bib_of_global_north = global_north,
+                     in_bib_of_PY = PY) %>%
+              dplyr::select(in_bib_of_UT, 
+                            in_bib_of_AG, 
+                            in_bib_of_ARbin_ethni,
+                            in_bib_of_first_auth, 
+                            in_bib_of_last_auth,
+                            in_bib_of_country,
+                            in_bib_of_global_north,
+                            in_bib_of_PY)) %>% 
+  rowwise() %>% 
+  mutate(is_self_cite = is_self_cite(first_auth, 
+                                     last_auth, 
+                                     in_bib_of_first_auth, 
+                                     in_bib_of_last_auth),
+         who_self_cite = who_self_cites(first_auth, 
+                                         last_auth, 
+                                         in_bib_of_first_auth, 
+                                         in_bib_of_last_auth)) 
+
+
+#### make citation counts dfs ####
+
+# times_cited_gn_nosf if filter is_self_cite == 0
+# times_cited_gn_nosf_noauth if only include_90, no exceptions for authors
+# times_cited_gn if no filter is_self_cite == 0
+# times_cited_nosf if filter is_self_cite == 0 but no gn filter
+
+# world but no self cite
+times_cited_nosf <- citation %>% 
+  left_join(authorship %>% dplyr::select(UT) %>% mutate(author = 1)) %>% 
+  filter(include_90 | author == 1) %>%  # relevant citations
+  filter(is_self_cite == 0) %>% # remove self citations
+  group_by(UT, PY, TC_byfield, author) %>% 
+  summarise(num_citations = n()) %>% # these values won't match TC_byfield bc excluding self cite
+  ungroup() %>% 
+  mutate(citation_rate = num_citations/(2024 - PY)) 
+
+# no self cite but global north
+times_cited_gn_nosf <- citation %>% 
+  left_join(authorship %>% dplyr::select(UT) %>% mutate(author = 1)) %>% 
+  filter(include_90 | author == 1) %>%  # relevant citations
+  filter(is_self_cite == 0) %>% # remove self citations
+  filter(global_north == 1) %>% #, in_bib_of_global_north == 1) %>% 
+  group_by(UT, PY, TC_byfield, author) %>% 
+  summarise(num_citations = n()) %>% # these values won't match TC_byfield bc excluding self cite
+  ungroup() %>% 
+  mutate(citation_rate = num_citations/(2024 - PY)) 
+
+# no self cite but no auth exception  
+times_cited_nosf_noauth <- citation %>% 
+  left_join(authorship %>% dplyr::select(UT) %>% mutate(author = 1)) %>% 
+  filter(include_90) %>%  # relevant citations
+  filter(is_self_cite == 0) %>% # remove self citations
+  group_by(UT, PY, TC_byfield, author) %>% 
+  summarise(num_citations = n()) %>% # these values won't match TC_byfield bc excluding self cite
+  ungroup() %>% 
+  mutate(citation_rate = num_citations/(2024 - PY)) 
+
+# world but with self cite
+times_cited_yessf <- citation %>% 
+  left_join(authorship %>% dplyr::select(UT) %>% mutate(author = 1)) %>% 
+  filter(include_90 | author == 1) %>%  # relevant citations
+  group_by(UT, PY, TC_byfield, author) %>% 
+  summarise(num_citations = n()) %>% # these values won't match TC_byfield bc excluding self cite
+  ungroup() %>% 
+  mutate(citation_rate = num_citations/(2024 - PY)) 
+
+
+
+# library(readxl)
+# exporter_data <- data.frame()
+# for(i in 1:22){
+#   print(i)
+#   newd <- read_xlsx(path = path, sheet = "ResearchOutput",
+#                         col_types = c("text")) # reading all in as text cause easier to convert to # later
+#   # newd <- read_excel(paste0("../Alexes' Section/Exporter/Default/highlycited/excel/export part", i, ".xlsx"),
+#   #                    sheet = "ResearchOutput",
+#   #                    col_types = c("text", "skip", "skip", "skip", "skip", "skip", "skip", "skip", "numeric", "numeric",
+#   #                                  "skip", "skip", "skip", "skip", "skip", "skip", "text", "text", "skip", "skip", "skip",
+#   #                                  "text", "text", "text", "text", "text", "text", "text", "text", "skip", "skip", "numeric",
+#   #                                  "skip", "skip", "skip", "skip", "text", "text", "skip", "skip", "skip", "skip", "skip", "skip",
+#   #                                  "text", "text", "text", "text", "text", "text", "skip", "skip", "skip", "skip", "skip")) %>%
+#   #   rename(UT = `Accession Number (UT)`)
+#   exporter_data <- exporter_data %>% bind_rows(newd)
+# }
+# write_csv(title_data, "highlycited/exporter_data.csv")
+
+exporter_data <- read_csv("highlycited/exporter_data.csv",
+                         col_types = "cccccccccccccccccccccccccccccccccccccccccccccccccccc") %>% 
+  select(`Accession Number (UT)`, `Number of Cited References`, `Times Cited`, `Keywords`, 
+           `Keywords Plus`, 
+           `1st Subject Category (traditional)`, `2nd Subject Category (traditional)`,  
+           `Abstract`, `Published Year`, `ISSN`, `EISSN`, `Source title`, 
+           `Title`) %>% 
+  rename(UT = `Accession Number (UT)`)
+
+
+# needs to have dash for WoS/JCR
+#### get exporter ISSNs to match to WoS ####
+exporter_issns_for_jcr <- exporter_data %>% 
+  # filter to our articles in 90th percentile + authorship
+  left_join(citation %>% dplyr::select(UT, include_90)) %>% 
+  left_join(authorship %>% dplyr::select(UT) %>% mutate(author = 1)) %>% 
+  filter(include_90 | author == 1) %>%  # relevant citations
+  # filter to unique journals
+  dplyr::select(ISSN, EISSN, `Source title`) %>% 
+  distinct() %>% 
+  #distinct(ISSN, EISSN, .keep_all = T) %>% 
+  #mutate(issn_for_wos = ifelse(is.na(ISSN), EISSN, ISSN))
+  # include both issn and eissn in case they don't have both
+  pivot_longer(cols = c(ISSN, EISSN), names_to = "issn_type", values_to = "issn") %>% 
+  filter(! is.na(issn)) %>% 
+  select(-issn_type) %>% 
+  distinct(issn) 
+
+already_downloaded <- read_xlsx("highlycited/issns/batch0_240719.xlsx",
+                                skip = 2) %>% 
+  select(ISSN, eISSN) %>% 
+  pivot_longer(cols = c(ISSN, eISSN), names_to = "issn_type", values_to = "issn") %>% 
+  filter(issn != "N/A") %>% 
+  distinct(issn)
+
+issns_todo <- exporter_issns_for_jcr %>% 
+  # want issns in exporter that aren't already downloaded
+  anti_join(already_downloaded) %>% 
+  mutate(batch_num = ceiling(row_number()/600))
+
+write_csv(issns_todo, "highlycited/issns/exporter_issns_20240719.csv")
+
+#### read in JCRs!!! ####
+# I manually deleted last two rows that have text & not data
+library(readxl)
+batchs <- seq(0, 5, by = 1)
+jcr_df <- data.frame()
+for(b in batchs){
+  batch_data <- read_xlsx(paste0("highlycited/issns/batch", b, "_240719.xlsx"),
+                          skip = 2) %>% 
+    dplyr::select(ISSN, eISSN, `Journal name`, `2023 JIF`) %>% 
+    rename(JIF = `2023 JIF`) %>% 
+    distinct() %>% 
+    mutate(ISSN = ifelse(ISSN == "N/A", NA, ISSN),
+           eISSN = ifelse(eISSN == "N/A", NA, eISSN),
+           JIF = ifelse(JIF == "N/A", NA, 
+                        ifelse(JIF == "<0.1", 0.01,
+                               JIF)),
+           JIF = as.integer(JIF))
+  
+  jcr_df <- jcr_df %>% bind_rows(batch_data)
+                          
+}
+
+#### join JCR with exporter data ####
+
+attempt_join <- exporter_data %>%
+  dplyr::select(ISSN, EISSN, UT, `Source title`) %>% 
+  pivot_longer(cols = c(ISSN, EISSN), names_to = "issn_type", values_to = "issn") %>% 
+  dplyr::select(-issn_type) %>% 
+  filter(! is.na(issn)) %>% 
+  distinct() %>% 
+  left_join(jcr_df %>% 
+              pivot_longer(cols = c(ISSN, eISSN), 
+                           names_to = "issn_type", values_to = "issn") %>% 
+              dplyr::select(-issn_type) %>% 
+              filter(!is.na(issn)) %>% 
+              distinct()) %>% 
+  dplyr::select(UT, JIF) %>% 
+  filter(! is.na(JIF)) %>% 
+  distinct()
+
+
+#### create regression data ####
+
+# note several different options for times_cited df in first line, run with each
+  # times_cited_nosf
+  # times_cited_gn_nosf
+  # times_cited_nosf_noauth
+  # times_cited_yessf
+
+regression_df <- times_cited_yessf %>% 
+  left_join(article_data, by = c("UT", "PY")) %>% 
+  left_join(attempt_join) %>% 
+  left_join(exporter_data) %>% 
+  filter(! is.na(JIF)) %>% 
+  filter(! grepl("U", AG)) %>%  # 36k papers, 24% under new constraints
+  filter(! grepl("U", ARbin_ethni)) %>% # 55k papers, 65% under new constraints
+  #filter(global_north == 1) %>% 
+  rename(num_cited_refs = `Number of Cited References`) %>% 
+  #filter(JIF > 0) %>% 
+  mutate(AG = as.factor(AG),
+         ARbin_ethni = as.factor(ARbin_ethni),
+         log_num_citations = log(num_citations),
+         log_citation_rate = log(citation_rate)) %>%
+  dplyr::select(UT, AG, ARbin_ethni, FA_genderize, LA_genderize,
+                FA_binrace_ethni, LA_binrace_ethni,
+                JIF, PY, num_citations,
+                log_num_citations, citation_rate, log_citation_rate,
+                WC, num_cited_refs, `1st Subject Category (traditional)`, Country,
+                global_north) %>%
+  filter(! is.na(global_north))
+  # mutate(across(c(num_citations, citation_rate, JIF, num_cited_refs, PY),
+  #               ~scale(.x)[,1], # scale adds [,1]to name
+  #               .names = "z_{.col}")) 
+out <- regression_df %>% 
+  rename(pair_gender = AG,
+         pair_race = ARbin_ethni,
+         FA_gender = FA_genderize,
+         LA_gender = LA_genderize,
+         FA_race = FA_binrace_ethni,
+         LA_race = LA_binrace_ethni,
+         year = PY,
+         WC_1st = `1st Subject Category (traditional)`)
+write_csv(out, "highlycited/input_jif_regression_yessf_20240925.csv")
+
+```
+
+The only change from the above code is that `article_id` is substituted for `UT`.
+
+```{r hide uts}
+key_map <- read_csv("highlycited/key_ut_to_articleid.csv")
+
+df <- read_csv("highlycited/input_jif_regression_nosf_20240925.csv") %>% 
+  left_join(key_map) %>% select(-UT)
+df_gn <- read_csv("highlycited/input_jif_regression_gn_nosf_20240925.csv") %>%
+  left_join(key_map) %>% select(-UT)
+df_sf <- read_csv("highlycited/input_jif_regression_yessf_20240925.csv") %>% 
+  left_join(key_map) %>% select(-UT)
+df_noauth <- read_csv("highlycited/input_jif_regression_nosf_noauth_20240925.csv") %>% 
+  left_join(key_map) %>% select(-UT)
+  
+write_csv(df, "highlycited/input_jif_regression_nosf_20240925_public.csv")
+write_csv(df_gn, "highlycited/input_jif_regression_gn_nosf_20240925_public.csv")
+write_csv(df_sf, "highlycited/input_jif_regression_yessf_20240925_public.csv")
+write_csv(df_noauth, "highlycited/input_jif_regression_nosf_noauth_20240925_public.csv")
+```
+
+## To run this using public data, start here
+
+```{r load data}
+df <- read.csv("highlycited/input_jif_regression_nosf_20240925_public.csv",header=TRUE) %>%
+  mutate(log10_citation_rate = log10(citation_rate),
+         binJIF = as.integer(JIF>10),
+         sqrtJIF = sqrt(JIF),
+         pair_race_bin = ifelse(pair_race == "WW", "WW", "PorP")) %>% 
+  mutate(pair_gender = as.factor(pair_gender),
+         pair_race = as.factor(pair_race),
+         pair_race_bin = as.factor(pair_race_bin))
+
+df$pair_race <- factor(df$pair_race, levels = c("WW", "WN", "NW", "NN"))
+df$pair_race_bin <- factor(df$pair_race_bin, levels = c("WW", "PorP"))
+df$global_north <- factor(df$global_north, levels = c("0", "1"))
+```
+
+### Explore and check data
+
+Note that to create this data I removed all entries where both first and last author gender and race could not be inferred. If we want more power, could do separate analyses with complete cases of each identity type.
+
+Examine distribution of citation rates and journal impact factors
+
+```{r histograms}
+hist(df$log10_citation_rate)
+
+hist(df$JIF)
+hist(df$sqrtJIF)
+```
+
+Check whether first and last author gender and first and last author race are independent. This affects whether we use pair_gender and pair_race variables or independent first and last author variables.
+
+```{r gender xi squared test}
+table(df$FA_gender,df$LA_gender) # cols are LA, rows are FA
+# chisquared test is to determine whether two categorical variables are independent
+Xsq <- chisq.test(table(df$FA_gender,df$LA_gender))
+Xsq
+Xsq$expected
+```
+Does this conflict with our finding that there aren't gender collaboration biases? 
+
+
+```{r race xi squared test}
+table(df$FA_race,df$LA_race) # cols are LA, rows are FA
+# chisquared test is to determine whether two categorical variables are independent
+Xsq <- chisq.test(table(df$FA_race,df$LA_race))
+Xsq
+Xsq$expected
+```
+
+Basically we observe more gender and race assortativity/homophily than expected.
+
+Look at collinearity between JIF and gender and JIF and race
+
+```{r collinearity}
+df %>% ggplot(aes(x = pair_gender, y = sqrtJIF)) + 
+  geom_jitter(alpha = 0.15, col = "dimgrey") + 
+  geom_boxplot(fill = NA, outlier.shape = NA) + 
+  theme_bw()
+df %>% ggplot(aes(x = pair_race, y = sqrtJIF)) + 
+  geom_jitter(alpha = 0.15, col = "dimgrey") + 
+  geom_boxplot(fill = NA, outlier.shape = NA) + 
+  theme_bw()
+df %>% ggplot(aes(x = pair_race_bin, y = sqrtJIF)) + 
+  geom_jitter(alpha = 0.15, col = "dimgrey") + 
+  geom_boxplot(fill = NA, outlier.shape = NA) + 
+  theme_bw()
+
+# Table S2
+anova_lm_gender <- lm(sqrtJIF ~ pair_gender, data = df)
+summary(anova_lm_gender)
+stargazer(anova_lm_gender, style = "all", covariate.labels = c("MW", "WM", "WW"))
+
+anova_gender <- aov(sqrtJIF ~ pair_gender, data = df)
+summary(anova_gender)
+
+# Table S3
+anova_lm_race <- lm(sqrtJIF ~ pair_race, data = df)
+summary(anova_lm_race)
+stargazer(anova_lm_race, style = "all", covariate.labels = c("EC", "CE", "CC"))
+
+anova_race <- aov(sqrtJIF ~ pair_race, data = df)
+summary(anova_race)
+
+anova_lm_race_bin <- lm(sqrtJIF ~ pair_race_bin, data = df)
+summary(anova_lm_race_bin)
+anova_race_bin <- aov(sqrtJIF ~ pair_race_bin, data = df)
+summary(anova_race_bin)
+
+anova_lm_tog <- lm(sqrtJIF ~ pair_gender + pair_race, data = df)
+summary(anova_lm_tog)
+
+anova_tog <- aov(sqrtJIF ~ pair_gender + pair_race_bin, data = df)
+summary(anova_tog)
+
+# multiple comparisons another way to know which groups are different..but I'm not sure this is our aim
+```
+
+race doesn't seem to be collinear with JIF, but gender does for GN 
+both are collinear, though gender less so for world
+
+```{r anova assumptions}
+# do I need to check any ANOVA assumptions?
+
+# 1. normal distribution of data within group
+df %>% ggplot(aes(x = sqrtJIF)) + 
+  geom_histogram() +
+  facet_wrap(~pair_gender) +
+  theme_bw()
+df %>% ggplot(aes(x = sqrtJIF)) + 
+  geom_histogram() +
+  facet_wrap(~pair_gender) +
+  theme_bw()
+# not met, but not too sensitive
+# can use kruskal wallis instead
+
+# 2. standard deviations are equal within groups
+df %>% group_by(pair_gender) %>% 
+  summarise(sd = sd(sqrtJIF))
+df %>% group_by(pair_race) %>% 
+  summarise(sd = sd(sqrtJIF))
+# looks good
+```
+
+
+## Run regression models
+
+```{r models}
+# Table S4
+fit_gender_nojif <- lm(log10_citation_rate ~ pair_gender, data = df)
+summary(fit_gender_nojif)
+stargazer(fit_gender_nojif, style = "all", covariate.labels = c("MW", "WM", "WW"))
+
+# Table S5
+fit_race_nojif <- lm(log10_citation_rate ~ pair_race, data = df)
+summary(fit_race_nojif)
+stargazer(fit_race_nojif, style = "all", covariate.labels = c("EC", "CE", "CC"))
+
+# Table S6
+fit_gender <- lm(log10_citation_rate ~ pair_gender*sqrtJIF, data = df)
+summary(fit_gender)
+stargazer(fit_gender, style = "all", covariate.labels = c("MW", "WM", "WW", "JIF",
+                                                          "MW:JIF", "WM:JIF", "WW:JIF"))
+# Table S7
+fit_race <- lm(log10_citation_rate ~ pair_race*sqrtJIF, data = df)
+summary(fit_race)
+stargazer(fit_race, style = "all", covariate.labels = c("EC", "CE", "CC", "JIF",
+                                                          "EC:JIF", "CE:JIF", "CC:JIF"))
+# Table S8
+fit_nogn <- lm(log10_citation_rate ~ pair_gender*sqrtJIF + pair_race*sqrtJIF, data = df)
+summary(fit_nogn)
+stargazer(fit_nogn, style="all", covariate.labels = c("MW", "WM", "WW", "JIF",
+                                                      "EC", "CE", "CC",
+                                                 "MW:JIF", "WM:JIF", "WW:JIF", "EC:JIF",
+                                                 "CE:JIF", "CC:JIF"))
+
+# main text
+fit <- lm(log10_citation_rate ~ pair_gender*sqrtJIF + pair_race*sqrtJIF + global_north, data = df)
+summary(fit)
+stargazer(fit, style="all", covariate.labels = c("MW", "WM", "WW", "JIF", "EC", "CE", "CC",
+                                                 "Global North Senior Author",
+                                                 "MW:JIF", "WM:JIF", "WW:JIF", "EC:JIF",
+                                                 "CE:JIF", "CC:JIF"))
+
+
+
+# fit_gender_race_nojif <- lm(log10_citation_rate ~ pair_gender + pair_race, data = df)
+# summary(fit_gender_race_nojif)
+
+```
+
+
+```{r sensitivity geography}
+df_gn <- read_csv("highlycited/input_jif_regression_gn_nosf_20240925_public.csv") %>%
+  dplyr::select(article_id, year, num_citations, citation_rate, pair_gender, pair_race, FA_gender, LA_gender, FA_race, LA_race, JIF, WC_1st, num_cited_refs, Country) %>% 
+  rename(WC = WC_1st, country = Country) %>% 
+  mutate(log10_citation_rate = log10(citation_rate),
+         sqrtJIF = sqrt(JIF),
+         pair_race_bin = ifelse(pair_race == "WW", "WW", "PorP")) %>% 
+  mutate(pair_gender = as.factor(pair_gender),
+         pair_race = as.factor(pair_race),
+         pair_race_bin = as.factor(pair_race_bin))
+
+df_gn$pair_race <- factor(df_gn$pair_race, levels = c("WW", "WN", "NW", "NN"))
+df_gn$pair_race_bin <- factor(df_gn$pair_race_bin, levels = c("WW", "PorP"))
+
+# only gender interactions significant/collinear
+anova_lm_gender <- lm(sqrtJIF ~ pair_gender, data = df_gn)
+summary(anova_lm_gender)
+
+anova_lm_race <- lm(sqrtJIF ~ pair_race, data = df_gn)
+summary(anova_lm_race)
+
+fit_gender <- lm(log10_citation_rate ~ pair_gender*sqrtJIF, data = df_gn)
+summary(fit_gender)
+
+# race not predictive when focused on just global north
+fit_race <- lm(log10_citation_rate ~ pair_race*sqrtJIF, data = df_gn)
+summary(fit_race)
+
+# Table S10
+fit <- lm(log10_citation_rate ~ pair_gender*sqrtJIF + pair_race*sqrtJIF, data = df_gn)
+summary(fit)
+stargazer(fit, style = "all", covariate.labels = c("MW", "WM", "WW", "JIF", 
+                                                   "WN", "NW", "NN", "MW:JIF",
+                                                   "WM:JIF", "WW:JIF", "EC:JIF",
+                                                   "CE:JIF", "CC:JIF"))
+# race becomes significant for gn population
+# fit_gender_nojif <- lm(log10_citation_rate ~ pair_gender, data = df_gn)
+# summary(fit_gender_nojif)
+# 
+# fit_race_nojif <- lm(log10_citation_rate ~ pair_race, data = df_gn)
+# summary(fit_race_nojif)
+# 
+# fit_gender_race_nojif <- lm(log10_citation_rate ~ pair_gender + pair_race, data = df_gn)
+# summary(fit_gender_race_nojif)
+
+
+```
+
+```{r sensitivity self cite}
+# include self citations
+df_sf <- read_csv("highlycited/input_jif_regression_yessf_20240925_public.csv") %>% 
+  dplyr::select(article_id, year, num_citations, citation_rate, pair_gender, pair_race, FA_gender,
+                LA_gender, FA_race, LA_race, JIF, WC_1st, num_cited_refs, Country, global_north) %>% 
+  rename(WC = WC_1st, country = Country) %>% 
+  mutate(log10_citation_rate = log10(citation_rate),
+         sqrtJIF = sqrt(JIF),
+         pair_race_bin = ifelse(pair_race == "WW", "WW", "PorP")) %>% 
+  mutate(pair_gender = as.factor(pair_gender),
+         pair_race = as.factor(pair_race),
+         pair_race_bin = as.factor(pair_race_bin))
+
+df_sf$pair_race <- factor(df_sf$pair_race, levels = c("WW", "WN", "NW", "NN"))
+df_sf$pair_race_bin <- factor(df_sf$pair_race_bin, levels = c("WW", "PorP"))
+df_sf$global_north <- factor(df_sf$global_north, levels = c("0", "1"))
+
+anova_lm_gender <- lm(sqrtJIF ~ pair_gender, data = df_sf)
+summary(anova_lm_gender)
+
+anova_lm_race <- lm(sqrtJIF ~ pair_race, data = df_sf)
+summary(anova_lm_race)
+stargazer(anova_lm_race, style = "all")
+# now race is collinear
+
+# chisquared test is to determine whether two categorical variables are independent
+Xsq <- chisq.test(table(df_sf$FA_gender,df_sf$LA_gender))
+Xsq
+Xsq <- chisq.test(table(df_sf$FA_race,df_sf$LA_race))
+Xsq
+
+
+fit_gender <- lm(log10_citation_rate ~ pair_gender*sqrtJIF, data = df_sf)
+summary(fit_gender)
+
+# table S9
+fit <- lm(log10_citation_rate ~ pair_gender*sqrtJIF + pair_race*sqrtJIF + global_north, data = df_sf)
+summary(fit)
+stargazer(fit, style = "all", covariate.labels = c("MW", "WM", "WW", "JIF", "EC", "CE", "CC",
+                                                   "Global North Senior Author", "MW:JIF",
+                                                   "WM:JIF", "WW:JIF", "EC:JIF", "CE:JIF",
+                                                   "CC:JIF"))
+
+```
+
+
+
+```{r sensitivity authorship}
+df_noauth <- read_csv("highlycited/input_jif_regression_nosf_noauth_20240925_public.csv") %>% 
+  dplyr::select(article_id, year, num_citations, citation_rate, pair_gender, pair_race, FA_gender,
+                LA_gender, FA_race, LA_race, JIF, WC_1st, num_cited_refs, Country, global_north) %>% 
+  rename(WC = WC_1st, country = Country) %>% 
+  mutate(log10_citation_rate = log10(citation_rate),
+         sqrtJIF = sqrt(JIF),
+         pair_race_bin = ifelse(pair_race == "WW", "WW", "PorP")) %>% 
+  mutate(pair_gender = as.factor(pair_gender),
+         pair_race = as.factor(pair_race),
+         pair_race_bin = as.factor(pair_race_bin))
+
+df_noauth$pair_race <- factor(df_noauth$pair_race, levels = c("WW", "WN", "NW", "NN"))
+df_noauth$pair_race_bin <- factor(df_noauth$pair_race_bin, levels = c("WW", "PorP"))
+df_noauth$global_north <- factor(df_noauth$global_north, levels = c("0", "1"))
+
+anova_lm_gender <- lm(sqrtJIF ~ pair_gender, data = df_noauth)
+summary(anova_lm_gender)
+
+anova_lm_race <- lm(sqrtJIF ~ pair_race, data = df_noauth)
+summary(anova_lm_race)
+stargazer(anova_lm_race, style = "all")
+# now race is collinear but gender isn't!
+
+# chisquared test is to determine whether two categorical variables are independent
+Xsq <- chisq.test(table(df_noauth$FA_gender,df_noauth$LA_gender))
+Xsq
+Xsq <- chisq.test(table(df_noauth$FA_race,df_noauth$LA_race))
+Xsq
+
+# table s11
+fit <- lm(log10_citation_rate ~ pair_gender*sqrtJIF + pair_race*sqrtJIF + global_north, data = df_noauth)
+summary(fit)
+stargazer(fit, style = "all", covariate.labels = c("MW", "WM", "WW", "JIF", "EC", "CE", "CC",
+                                                   "Global North Senior Author", "MW:JIF",
+                                                   "WM:JIF", "WW:JIF", "EC:JIF", "CE:JIF",
+                                                   "CC:JIF"))
+
+```
