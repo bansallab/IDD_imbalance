@@ -34,38 +34,42 @@ is_self_cite <- function(bib_first, bib_last, og_first, og_last){
 
 
 #### read in data #### 
-article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.7.csv")) %>% 
+article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.7_public.csv")) %>% 
   #mutate(Country = ifelse(Country %in% c("england", "scotland", "wales"), "uk", Country)) %>% 
   mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north)) %>% 
+  # TODO: if using public data comment the next line as this has already been performed
   filter(first_auth != last_auth) %>% # no single author articles
   filter(! is.na(Country))
 
-authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>% 
-  dplyr::select(UT) %>% 
-  inner_join(article_data, by = "UT") %>% # non single authors
+authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship_public.csv")) %>% 
+  dplyr::select(article_id) %>% 
+  inner_join(article_data, by = "article_id") %>% # non single authors
   ungroup() 
 
-citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
+citation <- read_csv(paste0(folder_path, "/df9_consensus_citation_public.csv")) %>% 
   dplyr::select(-PY) %>% 
   # filter to only include citations of valid citing articles, this will be non-single author citers
-  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
-             by = "in_bib_of_UT") %>%
+  inner_join(article_data %>% rename(in_bib_of_article_id = article_id) %>% dplyr::select(in_bib_of_article_id),
+             by = "in_bib_of_article_id") %>%
   # join with cited article data, non-single author citing
-  inner_join(article_data, by = "UT") %>% 
+  inner_join(article_data, by = "article_id") %>% 
   # link citation articles to their source bibliography information
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
-                     in_bib_of_UT = UT,
+                     in_bib_of_article_id = article_id,
+                     # TODO: if using public data, comment next two lines
                      in_bib_of_first_auth = first_auth,
                      in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
-              dplyr::select(in_bib_of_UT, 
+              dplyr::select(in_bib_of_article_id, 
                             in_bib_of_AG, 
+                            # TODO: if using public data, comment next two lines
                             in_bib_of_first_auth, 
                             in_bib_of_last_auth,
                             in_bib_of_country,
                             in_bib_of_global_north)) %>% 
+  # TODO: if using public data comment out next two commands (rowwise & mutate) as this has been performed
   rowwise() %>% 
   mutate(is_self_cite = is_self_cite(first_auth, 
                                      last_auth, 
@@ -77,19 +81,19 @@ citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>%
 #### stats for results & intersectional authorship ####
 # stats for results:
 nrow(authorship)
-citation90 <- citation %>% left_join(authorship %>% select(UT) %>% mutate(author = 1)) %>% 
+citation90 <- citation %>% left_join(authorship %>% select(article_id) %>% mutate(author = 1)) %>% 
   filter(include_90 | author == 1)
 citation90 %>% nrow()
-citation90 %>% select(UT) %>% distinct() %>% nrow()
+citation90 %>% select(article_id) %>% distinct() %>% nrow()
 (authorship %>% filter(! grepl("U", AG)) %>% nrow())/nrow(authorship)
 (authorship %>% filter(! grepl("U", ARbin_ethni)) %>% nrow())/nrow(authorship)
 (authorship %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(authorship)
-(authorship %>% filter(! grepl("U", LA_ethni_race)) %>% nrow())/nrow(authorship)
+(authorship %>% filter(! grepl("U", LA_binrace_ethni)) %>% nrow())/nrow(authorship)
 #(citation90 %>% filter(! grepl("U", AG)) %>% nrow())/nrow(citation90)
-(citation90 %>% distinct(UT, .keep_all = T) %>% filter(! grepl("U", AG)) %>% nrow())/nrow(citation90 %>% distinct(UT))
-(citation90 %>% distinct(UT, .keep_all = T) %>% filter(! grepl("U", ARbin_ethni)) %>% nrow())/nrow(citation90 %>% distinct(UT))
-(citation90 %>% distinct(UT, .keep_all = T) %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(citation90 %>% distinct(UT))
-(citation90 %>% distinct(UT, .keep_all = T) %>% filter(! grepl("U", LA_ethni_race)) %>% nrow())/nrow(citation90 %>% distinct(UT))
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", AG)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", ARbin_ethni)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_binrace_ethni)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
 
 
 
@@ -101,7 +105,7 @@ authorship %>% group_by(Country) %>%
 
 library(MetBrewer)
 la_plot_df <- authorship %>%
-  dplyr::select(UT, PY, LA_genderize, LA_binrace_ethni) %>% 
+  dplyr::select(article_id, PY, LA_genderize, LA_binrace_ethni) %>% 
   filter(! grepl("U", LA_genderize)) %>% 
   filter(! grepl("U", LA_binrace_ethni)) %>% 
   mutate(LA_genderize = ifelse(LA_genderize == "M", "man", 
@@ -118,7 +122,7 @@ la_plot_df <- authorship %>%
   mutate(intersectional_auth = paste(LA_binrace_ethni, LA_genderize)) %>% 
   mutate(prop = count/total) 
 fa_plot_df <-  authorship %>%
-  dplyr::select(UT, PY, FA_genderize, FA_binrace_ethni) %>% 
+  dplyr::select(article_id, PY, FA_genderize, FA_binrace_ethni) %>% 
   filter(! grepl("U", FA_genderize)) %>% 
   filter(! grepl("U", FA_binrace_ethni)) %>% 
   mutate(FA_genderize = ifelse(FA_genderize == "M", "man", 
@@ -316,7 +320,7 @@ get.plotdf.general=function(boot, group, num_comb){
 generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_scope, num_comb){
   
   times_cited <- citation %>% 
-    dplyr::select(UT, include_95, include_90, include_75, include_50) %>% 
+    dplyr::select(article_id, include_95, include_90, include_75, include_50) %>% 
     distinct() %>% 
     filter(ifelse(percentile_consensus == 0.95, include_95,
                   ifelse(percentile_consensus == 0.9, include_90,
@@ -345,8 +349,8 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
     # need this later but trying not to repeat conditionals
     obs_ref_props <- citation %>% 
       # filter all citations to only authorship + consensus cited citation papers (what we are deeming the field)
-      inner_join(full_join(times_cited %>% dplyr::select(UT, well_cited),
-                           authorship %>% dplyr::select(UT) %>% mutate(author = 1))) %>%
+      inner_join(full_join(times_cited %>% dplyr::select(article_id, well_cited),
+                           authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binarygender({{group_col}})) %>% # group cat of citation
       filter(is_self_cite == 0, # make sure not self citation & genderized
@@ -361,12 +365,12 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                        cited_scope == "globalnorth" ~ global_north == 1,
                        cited_scope == "us" ~ Country == "usa",
                        cited_scope == "uk" ~ Country == "uk")) %>%
-      group_by(in_bib_of_UT, GC) %>% 
+      group_by(in_bib_of_article_id, GC) %>% 
       summarise(n = n()) %>% # count number of papers of each gender type cited by paper
       ungroup() %>% 
-      complete(in_bib_of_UT, GC, # var pairs to complete (in case no WW citations for ex, put 0)
+      complete(in_bib_of_article_id, GC, # var pairs to complete (in case no WW citations for ex, put 0)
                fill = list(n = 0)) %>% # replacement value 
-      group_by(in_bib_of_UT) %>% 
+      group_by(in_bib_of_article_id) %>% 
       mutate(tot_nonselfcite = sum(n)) %>% # total non self citations is sum of these citations
       ungroup() %>% 
       rowwise() %>% 
@@ -380,8 +384,8 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
     
     # need this later but trying not to repeat conditionals
     obs_ref_props <- citation %>% 
-      inner_join(full_join(times_cited %>% dplyr::select(UT, well_cited),
-                           authorship %>% dplyr::select(UT) %>% mutate(author = 1))) %>%
+      inner_join(full_join(times_cited %>% dplyr::select(article_id, well_cited),
+                           authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binaryrace({{group_col}})) %>% # group cat
       filter(is_self_cite == 0, # make sure not self citation & genderized
@@ -396,12 +400,12 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                        cited_scope == "globalnorth" ~ global_north == 1,
                        cited_scope == "us" ~ Country == "usa",
                        cited_scope == "uk" ~ Country == "uk")) %>%
-      group_by(in_bib_of_UT, GC) %>% 
+      group_by(in_bib_of_article_id, GC) %>% 
       summarise(n = n()) %>% # count number of papers of each gender type cited by paper
       ungroup() %>% 
-      complete(in_bib_of_UT, GC, # var pairs to complete (in case no WW citations for ex, put 0)
+      complete(in_bib_of_article_id, GC, # var pairs to complete (in case no WW citations for ex, put 0)
                fill = list(n = 0)) %>% # replacement value 
-      group_by(in_bib_of_UT) %>% 
+      group_by(in_bib_of_article_id) %>% 
       mutate(tot_nonselfcite = sum(n)) %>% # total non self citations is sum of these citations
       ungroup() %>% 
       rowwise() %>% 
@@ -415,8 +419,8 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
     
     # need this later but trying not to repeat conditionals
     obs_ref_props <- citation %>% 
-      inner_join(full_join(times_cited %>% dplyr::select(UT, well_cited),
-                           authorship %>% dplyr::select(UT) %>% mutate(author = 1))) %>%
+      inner_join(full_join(times_cited %>% dplyr::select(article_id, well_cited),
+                           authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binaryracepairs({{group_col}})) %>% # group cat
       filter(is_self_cite == 0, # make sure not self citation & genderized
@@ -431,12 +435,12 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                        cited_scope == "globalnorth" ~ global_north == 1,
                        cited_scope == "us" ~ Country == "usa",
                        cited_scope == "uk" ~ Country == "uk")) %>%
-      group_by(in_bib_of_UT, GC) %>% 
+      group_by(in_bib_of_article_id, GC) %>% 
       summarise(n = n()) %>% # count number of papers of each gender type cited by paper
       ungroup() %>% 
-      complete(in_bib_of_UT, GC, # var pairs to complete (in case no WW citations for ex, put 0)
+      complete(in_bib_of_article_id, GC, # var pairs to complete (in case no WW citations for ex, put 0)
                fill = list(n = 0)) %>% # replacement value 
-      group_by(in_bib_of_UT) %>% 
+      group_by(in_bib_of_article_id) %>% 
       mutate(tot_nonselfcite = sum(n)) %>% # total non self citations is sum of these citations
       ungroup() %>% 
       rowwise() %>% 
@@ -457,17 +461,17 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
   uncond_expecs=pbmclapply(month_from_base, match.uncond.exp,
                            uncond_expecs,unique_months,mc.cores=cores)
   uncond_expecs=do.call(rbind,uncond_expecs)
-  uncond_expecs <- uncond_expecs %>% cbind(expectation_data %>% dplyr::select(UT))
+  uncond_expecs <- uncond_expecs %>% cbind(expectation_data %>% dplyr::select(article_id))
   
   # this is my own function to try to do what get.ref.props does with cited.papers
   # add filtering of authorship here to ppl whose practices we want to analyze (via inner_join)
   # not appropriate above bc expectation based on all
   if(num_comb == 4){
     ref_props <- authorship %>% 
-      dplyr::select(UT, PY, PD) %>% 
+      dplyr::select(article_id, PY, PD) %>% 
       # join with citation practices of that authorship paper 
       # [was left_join but some papers not in obs_ref_props if all citations have NA GC]
-      inner_join(obs_ref_props, by = c("UT" = "in_bib_of_UT")) %>% 
+      inner_join(obs_ref_props, by = c("article_id" = "in_bib_of_article_id")) %>% 
       rename(obs_0 = `0`, obs_1 = `1`, obs_2 = `2`, obs_3 = `3`) %>%
       # join with expected citation practices given date of publication for authorship paper
       left_join(uncond_expecs) %>% 
@@ -478,10 +482,10 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
     # uncond expec NAs are for the first papers in the dataset bc technically nothing was published then
   }else if(num_comb == 2){
     ref_props <- authorship %>% 
-      dplyr::select(UT, PY, PD) %>% 
+      dplyr::select(article_id, PY, PD) %>% 
       # join with citation practices of that authorship paper 
       # [was left_join but some papers not in obs_ref_props if all citations have NA GC]
-      inner_join(obs_ref_props, by = c("UT" = "in_bib_of_UT")) %>% 
+      inner_join(obs_ref_props, by = c("article_id" = "in_bib_of_article_id")) %>% 
       rename(obs_0 = `0`, obs_1 = `1`) %>%
       # join with expected citation practices given date of publication for authorship paper
       left_join(uncond_expecs) %>% 
@@ -491,7 +495,7 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
   }
   
   # reorganize proportions expected and observed
-  ref_proportions <- data.matrix(ref_props %>% dplyr::select(-UT, -PY, -PD))
+  ref_proportions <- data.matrix(ref_props %>% dplyr::select(-article_id, -PY, -PD))
   if(num_comb == 4){
     # mult by number of citations to get count of articles not props
     ref_tot_sub=ref_proportions[,1:8]*ref_proportions[,9] # changed to 8 and 9 from cond_expec removal
@@ -714,26 +718,26 @@ article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.8.csv")) %>%
   filter(!is.na(Country))
 
 authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>% 
-  dplyr::select(UT) %>% 
-  inner_join(article_data, by = "UT") %>% # non single authors
+  dplyr::select(article_id) %>% 
+  inner_join(article_data, by = "article_id") %>% # non single authors
   ungroup() 
 
 citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
   dplyr::select(-PY) %>% 
   # filter to only include citations of valid citing articles, this will be non-single author citers
-  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
-             by = "in_bib_of_UT") %>%
+  inner_join(article_data %>% rename(in_bib_of_article_id = article_id) %>% dplyr::select(in_bib_of_article_id),
+             by = "in_bib_of_article_id") %>%
   # join with cited article data, non-single author citing
-  inner_join(article_data, by = "UT") %>% 
+  inner_join(article_data, by = "article_id") %>% 
   # link citation articles to their source bibliography information
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
-                     in_bib_of_UT = UT,
+                     in_bib_of_article_id = article_id,
                      in_bib_of_first_auth = first_auth,
                      in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
-              dplyr::select(in_bib_of_UT, 
+              dplyr::select(in_bib_of_article_id, 
                             in_bib_of_AG, 
                             in_bib_of_first_auth, 
                             in_bib_of_last_auth,
@@ -779,26 +783,26 @@ article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.6.csv")) %>%
   filter(! is.na(Country))
 
 authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>% 
-  dplyr::select(UT) %>% 
-  inner_join(article_data, by = "UT") %>% # non single authors
+  dplyr::select(article_id) %>% 
+  inner_join(article_data, by = "article_id") %>% # non single authors
   ungroup() 
 
 citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
   dplyr::select(-PY) %>% 
   # filter to only include citations of valid citing articles, this will be non-single author citers
-  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
-             by = "in_bib_of_UT") %>%
+  inner_join(article_data %>% rename(in_bib_of_article_id = article_id) %>% dplyr::select(in_bib_of_article_id),
+             by = "in_bib_of_article_id") %>%
   # join with cited article data, non-single author citing
-  inner_join(article_data, by = "UT") %>% 
+  inner_join(article_data, by = "article_id") %>% 
   # link citation articles to their source bibliography information
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
-                     in_bib_of_UT = UT,
+                     in_bib_of_article_id = article_id,
                      in_bib_of_first_auth = first_auth,
                      in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
-              dplyr::select(in_bib_of_UT, 
+              dplyr::select(in_bib_of_article_id, 
                             in_bib_of_AG, 
                             in_bib_of_first_auth, 
                             in_bib_of_last_auth,
