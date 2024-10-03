@@ -1,5 +1,3 @@
-#### Masking of information to allow sharing of article gender & race inferences
-
 {
   library(tidyverse)
   library(tidylog)
@@ -26,10 +24,8 @@ is_self_cite <- function(bib_first, bib_last, og_first, og_last){
 
 #### read in data #### 
 article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.7.csv")) %>% 
-  mutate(article_id = row_number()) 
-
-article_data_filtered <- article_data %>% 
-  filter(first_auth != last_auth) # this requires confidential info so must do here
+  mutate(article_id = row_number()) %>% 
+  mutate(has_single_author = first_auth == last_auth) # this requires confidential info so must do here
 
 mapping <- article_data %>% 
   select(UT, article_id)
@@ -39,7 +35,7 @@ authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>%
   ungroup() 
 
 citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
-  left_join(article_data %>% select(UT, article_id, first_auth, last_auth), by = "UT") %>% 
+  left_join(article_data %>% select(UT, article_id, first_auth, last_auth, has_single_author), by = "UT") %>% 
   left_join(article_data %>% select(UT, article_id, first_auth, last_auth) %>% 
               rename(in_bib_of_UT = UT, in_bib_of_article_id = article_id,
                      in_bib_of_first_auth = first_auth, in_bib_of_last_auth = last_auth),
@@ -51,14 +47,14 @@ citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>%
                                      in_bib_of_last_auth)) 
 
 # to save
-article_data_out <- article_data_filtered %>% select(article_id, PY, AG, ARbin_ethni, 
-                                                     FA_genderize, LA_genderize,
-                                                     FA_binrace_ethni, LA_binrace_ethni,
-                                                     Country, global_north)
+article_data_out <- article_data %>% select(article_id, PY, AG, ARbin_ethni, 
+                                            FA_genderize, LA_genderize,
+                                            FA_binrace_ethni, LA_binrace_ethni,
+                                            Country, global_north, has_single_author)
 authorship_out <- authorship %>% select(article_id, PY)
 citation_out <- citation %>% select(article_id, in_bib_of_article_id, PY, include_95, include_90, include_75, is_self_cite)
 
-write_csv(article_data_out, paste0(folder_path, "/df9_article_data_0.7_public.csv"))
+write_csv(article_data_out, paste0(folder_path, "/df9_articledata_0.7_public.csv"))
 write_csv(authorship_out, paste0(folder_path, "/df9_consensus_authorship_public.csv"))
 write_csv(citation_out, paste0(folder_path, "/df9_consensus_citation_public.csv"))
 

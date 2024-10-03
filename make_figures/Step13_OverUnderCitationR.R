@@ -37,9 +37,7 @@ is_self_cite <- function(bib_first, bib_last, og_first, og_last){
 article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.7_public.csv")) %>% 
   #mutate(Country = ifelse(Country %in% c("england", "scotland", "wales"), "uk", Country)) %>% 
   mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north)) %>% 
-  # TODO: if using public data comment the next line as this has already been performed
-  filter(first_auth != last_auth) %>% # no single author articles
-  filter(! is.na(Country))
+  filter(! has_single_author) # no single author articles
 
 authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship_public.csv")) %>% 
   dplyr::select(article_id) %>% 
@@ -202,7 +200,7 @@ get.uncond.exp.general=function(x,group_cat,month_from_base, num_comb){
       #   (problematic with the way we have set up dataset of papers right now)
       citable_papers=group_cat[month_from_base<x]
       # number of papers in each authorship category
-      prop_tab=table(factor(citable_papers,lev=0:(num_comb-1))) # this could be issue, TODO, seems like first value is 0
+      prop_tab=table(factor(citable_papers,lev=0:(num_comb-1))) # this could be issue, seems like first value is 0
       # convert to proportions not counts, this is now expectation at that time
       expecs_uncond=prop_tab/sum(prop_tab)
       return(expecs_uncond)
