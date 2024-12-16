@@ -7,7 +7,7 @@ import file_functions as ff
 
 ### Ensure that all csvs are closed before running the code or errors will be thrown
 
-folder_for_runs = "highlycited" # for field definition
+folder_for_runs = "coreidd" # for field definition
 
 os.chdir('../' + folder_for_runs + "/")
 

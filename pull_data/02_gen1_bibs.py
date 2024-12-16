@@ -8,7 +8,7 @@ import file_functions as ff
 ###     that means if you are rerunning from the beginning you need to make sure to remove or 
 ###     rename old outputs so they don't get appended to
 
-folder_for_runs = "highlycited" # for field definition
+folder_for_runs = "coreidd" # for field definition
 
 os.chdir('../' + folder_for_runs + "/")
 
@@ -43,7 +43,8 @@ print("Extracted generation 1 bibliographies")
 ##############################################
 ### Extract generation 1 bibliography info ###
 ##############################################
-os.chdir('../' + folder_for_runs + "/") # this will cause an error if above chdir is uncommented, need to get back to highly cited
+os.chdir('../')
+#os.chdir('../' + folder_for_runs + "/") # this will cause an error if above chdir is uncommented, need to get back to highly cited
 # shortcut is if error is thrown and file stops, recomment above and rerun file, need a better solution for this obviously
 
 print("Prepping generation 1 bibs for info pull")

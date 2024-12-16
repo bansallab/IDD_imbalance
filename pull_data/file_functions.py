@@ -245,7 +245,9 @@ def pull_full_records(input_filepath, output_filepath, first_time, completed_fil
                 
                 #### TIMES CITED ####
                 try:
-                    article_times_cited = article_response["Data"]["Records"]["records"]["REC"][0]["dynamic_data"]["citation_related"]["tc_list"]["silo_tc"]["local_count"]
+                    article_times_cited_all = article_response["Data"]["Records"]["records"]["REC"][0]["dynamic_data"]["citation_related"]["tc_list"]["silo_tc"]
+                    # changed 11/24/24 since there are now multiple times cited counts, I used WOS since I think that's what was there previously
+                    article_times_cited = next((item['local_count'] for item in article_times_cited_all if item['coll_id'] == 'WOS'), None)
                 except KeyError:
                     article_times_cited = None
 
