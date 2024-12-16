@@ -54,24 +54,24 @@ citation <- read_csv(paste0(folder_path, "/df9_consensus_citation_public.csv")) 
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
                      in_bib_of_article_id = article_id,
-                     # TODO: if using public data, comment next two lines
-                     in_bib_of_first_auth = first_auth,
-                     in_bib_of_last_auth = last_auth,
+                     # since using public data, next two lines are commented
+                     # in_bib_of_first_auth = first_auth,
+                     # in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
               dplyr::select(in_bib_of_article_id, 
                             in_bib_of_AG, 
-                            # TODO: if using public data, comment next two lines
-                            in_bib_of_first_auth, 
-                            in_bib_of_last_auth,
+                            # since using public data, next two lines are commented
+                            # in_bib_of_first_auth, 
+                            # in_bib_of_last_auth,
                             in_bib_of_country,
                             in_bib_of_global_north)) %>% 
-  # TODO: if using public data comment out next two commands (rowwise & mutate) as this has been performed
-  rowwise() %>% 
-  mutate(is_self_cite = is_self_cite(first_auth, 
-                                     last_auth, 
-                                     in_bib_of_first_auth, 
-                                     in_bib_of_last_auth)) %>% 
+  # since using public data next two commands (rowwise & mutate) are commented as this has been performed
+  # rowwise() %>% 
+  # mutate(is_self_cite = is_self_cite(first_auth, 
+  #                                    last_auth, 
+  #                                    in_bib_of_first_auth, 
+  #                                    in_bib_of_last_auth)) %>% 
   distinct() # none should be removed but just in case
 
 
@@ -179,7 +179,7 @@ fa_plot_df %>%
   ggtitle("Lead author") -> p1
 
 ggarrange(p1, p2, nrow = 1, common.legend = T, legend = "right")
-ggsave("figures/for-pub/supp/intersectional-authorship.pdf", height = 4, width = 10)
+# ggsave("figures/for-pub/supp/intersectional-authorship.pdf", height = 4, width = 10)
 
 
 
@@ -331,15 +331,20 @@ get.plotdf.general=function(boot, group, num_comb){
 #### function to prep over/under citation info for figure ####
 generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_scope, num_comb){
   
+  
   times_cited <- citation %>% 
     dplyr::select(article_id, include_95, include_90, include_75, include_50) %>% 
     distinct() %>% 
-    filter(ifelse(percentile_consensus == 0.95, include_95,
-                  ifelse(percentile_consensus == 0.9, include_90,
-                         ifelse(percentile_consensus == 0.75, include_75,
-                                ifelse(percentile_consensus == 0.5, include_50, TRUE))))) %>% 
+    dplyr::mutate(include = case_when(
+      percentile_consensus == 0.95 ~ include_95,
+      percentile_consensus == 0.9 ~ include_90,
+      percentile_consensus == 0.75 ~ include_75,
+      percentile_consensus == 0.5 ~ include_50,
+      TRUE ~ TRUE
+    )) %>% 
+    dplyr::filter(include) %>% 
     mutate(well_cited = 1)
-  
+
   # This is the other extreme where all citations are welcome, but they aren't included in the expectation
   expectation_data <- authorship %>%
     filter(case_when(cited_scope == "global" ~ TRUE,
@@ -608,8 +613,8 @@ gender_main_plot <- get.plotdf.general(gender_main, 'gender', num_comb = 4)
 
 p <- gender_plot(gender_main_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
-ggsave(paste0("figures/for-pub/", folder_path, "-fig2-gender.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/", folder_path, "-fig2-gender.png"),
+#        height = 4, width = 6, dpi = 600)
 
 #### race main ####
 race_global_cited <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
@@ -622,8 +627,8 @@ race_globalnorth_cited_plot <- get.plotdf.general(race_globalnorth_cited, 'race'
 
 p <- race_plot(race_globalnorth_cited_plot, race_global_cited_plot)
 p
-ggsave(paste0("figures/for-pub/", folder_path, "-fig2-race.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/", folder_path, "-fig2-race.png"),
+#        height = 4, width = 6)
 
 
 #### consensus threshold ####
@@ -636,8 +641,8 @@ gender_supp_75_plot <- get.plotdf.general(gender_supp_75, 'gender', num_comb = 4
 
 p <- gender_plot(gender_supp_75_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-75perc.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-75perc.png"),
+#        height = 4, width = 6, dpi = 600)
 
 # race
 race_global_cited_75_perc_supp <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = 0.75, 
@@ -650,8 +655,8 @@ race_globalnorth_cited_75_perc_supp_plot <- get.plotdf.general(race_globalnorth_
 
 p <- race_plot(race_globalnorth_cited_75_perc_supp_plot, race_global_cited_75_perc_supp_plot)
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-75perc.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-75perc.png"),
+#        height = 4, width = 6)
 
 
 #### namsor ####
@@ -663,8 +668,8 @@ gender_supp_namsor_plot <- get.plotdf.general(gender_supp_namsor, 'gender', num_
 
 p <- gender_plot(gender_supp_namsor_plot, plot_limits = c(-55, 15), plot_breaks = c(-50, -40, -30, -20, -10, 0, 10)) 
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-namsor.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-namsor.png"),
+#        height = 4, width = 6, dpi = 600)
 
 # race
 race_global_cited_namsor_supp <- generate_fig2(expr(ARbin_namsor), "race", percentile_consensus = PERC_CONSENSUS, 
@@ -678,8 +683,8 @@ race_globalnorth_cited_namsor_supp_plot <- get.plotdf.general(race_globalnorth_c
 p <- race_plot(race_globalnorth_cited_namsor_supp_plot, race_global_cited_namsor_supp_plot, plot_limits = c(-32, 70),
                plot_breaks = c(-20, 0, 20, 40, 60))
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-namsor.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-namsor.png"),
+#        height = 4, width = 6)
 
 #### geography ####
 # gender global north
@@ -690,8 +695,8 @@ gender_gn_supp_plot <- get.plotdf.general(gender_gn_supp, 'gender', num_comb = 4
 
 p <- gender_plot(gender_gn_supp_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-gn-citers.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-gn-citers.png"),
+#        height = 4, width = 6, dpi = 600)
 
 # race, us only
 globalnorth_cites_by_us <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
@@ -718,8 +723,8 @@ globalnorth_cites_by_us_plot %>%
                      limits=c(-40,22),
                      expand = c(0,0)) #+ 
 #scale_x_continuous(expand = c(0,0))
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-us.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-us.png"),
+#        height = 4, width = 6)
 
 
 ####  vary identity threshold, RUN LAST ####
@@ -772,8 +777,8 @@ gender_80_thresh_supp_plot <- get.plotdf.general(gender_80_thresh_supp, 'gender'
 p <- gender_plot(gender_80_thresh_supp_plot, plot_limits = c(-40, 12),
                  plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.8.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.8.png"),
+#        height = 4, width = 6, dpi = 600)
 
 # race
 race_global_cited_80_thresh_supp <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
@@ -786,8 +791,8 @@ race_globalnorth_cited_80_thresh_supp_plot <- get.plotdf.general(race_globalnort
 
 p <- race_plot(race_globalnorth_cited_80_thresh_supp_plot, race_global_cited_80_thresh_supp_plot)
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-0.8.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-0.8.png"),
+#        height = 4, width = 6)
 
 
 # 0.6
@@ -838,8 +843,8 @@ gender_60_thresh_supp_plot <- get.plotdf.general(gender_60_thresh_supp, 'gender'
 p <- gender_plot(gender_60_thresh_supp_plot, plot_limits = c(-40, 12),
                  plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.6.png"),
-       height = 4, width = 6, dpi = 600)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.6.png"),
+#        height = 4, width = 6, dpi = 600)
 
 race_global_cited_60_thresh_supp <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
                                                   scope = "globalnorth", cited_scope = "global", num_comb = 2) 
@@ -851,5 +856,5 @@ race_globalnorth_cited_60_thresh_supp_plot <- get.plotdf.general(race_globalnort
 
 p <- race_plot(race_globalnorth_cited_60_thresh_supp_plot, race_global_cited_60_thresh_supp_plot)
 p
-ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-0.6.png"),
-       height = 4, width = 6)
+# ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-0.6.png"),
+#        height = 4, width = 6)
