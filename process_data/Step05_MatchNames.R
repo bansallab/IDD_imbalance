@@ -1,7 +1,7 @@
 library(tidyverse)
 
 # change to field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 # Load in all-journal dataset from step 4
 article.data <- readRDS(file=paste0(folder_path, "/df4_articledata_cleannames.rds"))
 

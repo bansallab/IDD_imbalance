@@ -577,33 +577,43 @@ match.gend=function(name,namegends){
 }
 match.variants.inner=function(name,allfirsts,alllasts,nickname.gends){
   first=name[1]; last=name[2]
-  samelast.full=unique(allfirsts[alllasts==last])
+  # get all first names of authors with same last name
+  samelast.full=unique(allfirsts[alllasts==last]) 
+  # remove initials from all authors with same last name; if only initials, keeps initials
   samelast.clean=unlist(lapply(samelast.full,get.preferred))
+  # get initials for all authors with same last names
   samelast.initials=extract.initials(samelast.full)
-  samelast.gends=unlist(lapply(samelast.clean,match.gend,nickname.gends))
+  # checks for name in nicknames I think
+  # I added to lower bc otherwise can't compare
+  samelast.gends=unlist(lapply(tolower(samelast.clean),match.gend,nickname.gends))
   
+  # which of the matching authors is the inputted one
   name.index=which(samelast.full==first)
-  
+  # get full name of matching author
   this.full=samelast.full[name.index]
+  # remove matching author from list
   samelast.full=samelast.full[-name.index]
-  
+  # what's the initials removed name of focus author
   this.clean=samelast.clean[name.index]
   samelast.clean=samelast.clean[-name.index]
-  
+  # what's the initials of focus author
   this.initials=samelast.initials[name.index]
   samelast.initials=samelast.initials[-name.index]
-  
+  # what's the gender of focus author
   this.gend=samelast.gends[name.index]
   samelast.gends=samelast.gends[-name.index]
-  
+  # which nicknames match focus author
   this.nicknames=which(nicknames[,1]==tolower(this.clean))
   this.nicknames=unique(as.vector(nicknames[this.nicknames,-1]))
   this.nicknames=this.nicknames[this.nicknames!=""]
   
+  # which other names have same nickname, initials, gender, and full name
+  # just having same initials isn't enough which is annoying
   matches=which((samelast.clean==this.clean | 
                    tolower(samelast.clean)%in%this.nicknames) & 
-                grepl(this.initials,samelast.initials) & 
+                  grepl(this.initials,samelast.initials) & 
                   samelast.gends==this.gend)
+  # switch to longer version if not current version
   if(length(matches)==1){
     if(nchar(samelast.full[matches])>nchar(first)){
       return(samelast.full[matches])

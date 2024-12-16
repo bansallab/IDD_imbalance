@@ -2,7 +2,7 @@ source("HelperFunctions.R")
 library(rjson);library(pbmcapply)
 
 # choose field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 # Load in article dataset from step 5
 article.data <- readRDS(file=paste0(folder_path, "/df5_articledata_matchednames.rds"))
 
@@ -19,7 +19,7 @@ first_names=pbmclapply(1:length(all_auth_names),get.all.given,
 first_last_auths=pbmclapply(first_names,get.first.last,mc.cores=cores)
 
 # Assign probabilistic genders to author names
-# Alexes is now (08/16/24) doing the thresholding, so just send her probabilities
+# Step 8 does the thresholding, so just propagate probabilities
 library(tidyverse)
 article.data$authors = first_last_auths
 article.data <- article.data %>% 

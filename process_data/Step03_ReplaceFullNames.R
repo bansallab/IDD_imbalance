@@ -3,7 +3,7 @@ library(pbmcapply)
 library(tidyverse)
 
 # select field definition and run for each
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 
 # Create empty data frame for all-journal data
 article.data=NULL

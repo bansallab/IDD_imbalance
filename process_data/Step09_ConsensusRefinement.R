@@ -7,7 +7,7 @@
 #### common info ####
 
 # field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 
 acceptable_article_types <- c("Article", "Review", "Article; Early Access", 
                               "Review; Early Access", "Article; Proceedings Paper",
@@ -16,6 +16,7 @@ acceptable_article_types <- c("Article", "Review", "Article; Early Access",
 
 all_data <- read_csv(paste0(folder_path, "/df8_highlycited_0.7.csv")) %>% # was merged_cats for books
   dplyr::select(-`...1`) %>% 
+  mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north)) %>% 
   # mutate(FA_gender = ifelse(FA_gender == "male", "M",
   #                                ifelse(FA_gender == "female", "W", "U")),
   #        LA_gender = ifelse(LA_gender == "male", "M",
@@ -24,10 +25,11 @@ all_data <- read_csv(paste0(folder_path, "/df8_highlycited_0.7.csv")) %>% # was 
   relocate(c(FAFN, FALN, LAFN, LALN), .after = last_auth) %>% 
   relocate(c(AG, AG_namsor), .after = LALN) %>% 
   dplyr::select(-contains("Unnamed: 0"), -fa_fname, -la_fname) %>%  # comment for books
-  rename(FA_prob_race2 = FA_prob2,
-         LA_prob_race2 = LA_prob2) %>% 
-  relocate(c(FA_race, FA_prob_race, FA_race2, FA_prob_race2,
-             LA_race, LA_prob_race, LA_race2, LA_prob_race2), .after = LA_prob_gender) %>% 
+  # rename(FA_prob_race2 = FA_prob2,                                # comment for core idd
+  #        LA_prob_race2 = LA_prob2) %>%                            # comment for core idd
+  # relocate(c(FA_race, FA_prob_race, FA_race2, FA_prob_race2,      # comment for core idd
+  #            LA_race, LA_prob_race, LA_race2, LA_prob_race2),     # comment for core idd
+  #           .after = LA_prob_gender) %>%                          # comment for core idd 
   rename(FA_binrace = FA_group,
          LA_binrace = LA_group,
          ARbin_namsor = groups,
@@ -37,7 +39,7 @@ all_data <- read_csv(paste0(folder_path, "/df8_highlycited_0.7.csv")) %>% # was 
          FA_genderize = FA_group_g, 
          LA_genderize = LA_group_g) %>%  
   relocate(c(FA_genderize, LA_genderize), .after = AG) %>% 
-  # these should have already been done so really no need to repeat but just in case
+  # these have already been done so really no need to repeat but just in case
   filter(DT %in% acceptable_article_types, 
          PY < 2020)
 
@@ -59,11 +61,13 @@ citation <- read_csv(paste0(folder_path, "/citation_dataset.csv")) %>%
 #### determine consensus authorship ####
 # we need articles through 2023 for this to allow younger articles to be cited
 # I went back and included those articles in these two datasets
-# there is full article type filtering on these two, but can repeat in cas
-authorship_2023 <- read_csv(paste0(folder_path, "/authorship_dataset_2023.csv")) %>% 
+# there is full article type filtering on these two, but can repeat in case
+authorship_2023 <- read_csv(paste0(folder_path, "/authorship_dataset_full.csv")) %>% 
+  # use 2023 instead of full for books definition
   filter(DT %in% acceptable_article_types) %>% 
   dplyr::select(UT, PY)
-citation_2023 <- read_csv(paste0(folder_path, "/citation_dataset_2023.csv")) %>% 
+citation_2023 <- read_csv(paste0(folder_path, "/citation_dataset_full.csv")) %>% 
+  # use 2023 instead of full for books definition
   filter(DT %in% acceptable_article_types) %>% 
   dplyr::select(UT, in_bib_of_UT, PY)
 # we might just need citation_2023 for this?

@@ -6,10 +6,10 @@ library(xml2) # read_xml didn't run without this
 source("HelperFunctions.R")
 
 # Select field definition -- Will need to go back and repeat for each definition!
-folder_path <- "highlycited" # change to field definition
+folder_path <- "coreidd" # change to field definition
 
 data.frame <- read_csv(paste0(folder_path, "/data_for_dworkin_pipeline.csv"),
-                       col_types = "ccciccccic")
+                       col_types = "ccciccccicc")
 data.frame$done = 0
 
 # # I think we can actually lump all of our data into one df

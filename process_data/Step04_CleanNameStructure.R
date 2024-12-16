@@ -4,7 +4,7 @@ library(RJSONIO);library(textclean)
 library(tidyverse); library(stringi)
 
 # change to appropriate field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 # Load in all-journal dataset from step 3
 if("df4_articledata_cleannames.rds" %in% list.files(paste0(folder_path, "/"))){
   article.data <- readRDS(paste0(folder_path, "/df4_articledata_cleannames.rds"))

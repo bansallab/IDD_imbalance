@@ -11,7 +11,7 @@ source("HelperFunctions.R")
 
 
 # Select definition -- Will need to go back and repeat for each definition!
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 
 data.frame <- readRDS(paste0(folder_path, "/df1.rds")) %>% 
   mutate(DI = gsub("//", "/", DI)) %>% 
@@ -32,7 +32,7 @@ saveRDS(first_names, paste0(folder_path, "/step2_firstnames.rds"))
 initials=unlist(lapply(first_names,is.initials))
 
 # Determine which articles only have initial information or an NA doi
-bad_initial_rows <- which(initials != T) # we don't need to search these!
+bad_initial_rows <- which(initials != T) # we don't need to search these, we have the full name!
 bad_doi_rows <- which(is.na(data.frame$DI)) # these DOIs don't work
 all_bad_rows <- union(bad_initial_rows, bad_doi_rows) # no duplicates
 valid_rows <- setdiff(seq(1:nrow(data.frame)), all_bad_rows)

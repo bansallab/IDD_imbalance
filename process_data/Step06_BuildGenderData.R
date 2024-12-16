@@ -2,7 +2,7 @@ source("HelperFunctions.R")
 library(rjson);library(pbmcapply)
 
 # choose based on field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 # Load in dataset from step 5
 article.data <- readRDS(paste0(folder_path, "/df5_articledata_matchednames.rds"))
 
@@ -56,7 +56,7 @@ if("df6_namegends.rds"%in%list.files(paste0(folder_path, "/"))){
 # we will be using different API so need to modify the code accordingly
 library(genderizeR)
 # Run 'sum(is.na(namegends$prob.m))' to see how many credits you'll need
-gender_api_key="YOUR API KEY"
+gender_api_key="YOUR GENDERIZE API KEY"
 
 # needed credits
 sum(is.na(namegends$prob.m))
@@ -64,7 +64,7 @@ sum(is.na(namegends$prob.m))
 r=which(is.na(namegends$prob.m))
 
 #r = r[1:5]
-count = 0
+count = 1
 # For the remaining unqueried names...
 for(i in r){
   
