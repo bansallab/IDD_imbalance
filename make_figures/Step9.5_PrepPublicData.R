@@ -5,7 +5,7 @@
 
 #### common info ####
 
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 
 is_self_cite <- function(bib_first, bib_last, og_first, og_last){
   # bib_first and _last are first and last authors of cited paper

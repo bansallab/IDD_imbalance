@@ -14,7 +14,7 @@
 cores=detectCores()
 
 # change to desired field definition
-folder_path <- "highlycited"
+folder_path <- "coreidd"
 
 ### data functions
 is_self_cite <- function(bib_first, bib_last, og_first, og_last){
@@ -35,7 +35,6 @@ is_self_cite <- function(bib_first, bib_last, og_first, og_last){
 
 #### read in data #### 
 article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.7_public.csv")) %>% 
-  #mutate(Country = ifelse(Country %in% c("england", "scotland", "wales"), "uk", Country)) %>% 
   mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north)) %>% 
   filter(! has_single_author) # no single author articles
 
@@ -73,34 +72,49 @@ citation <- read_csv(paste0(folder_path, "/df9_consensus_citation_public.csv")) 
                                      last_auth, 
                                      in_bib_of_first_auth, 
                                      in_bib_of_last_auth)) %>% 
-  distinct() # DIFF, one row removed
+  distinct() # none should be removed but just in case
 
 
-#### stats for results & intersectional authorship ####
-# stats for results:
-nrow(authorship)
-citation90 <- citation %>% left_join(authorship %>% select(article_id) %>% mutate(author = 1)) %>% 
+#### stats for results ####
+# authorship not excluding single authors
+full_auth <- read_csv(paste0(folder_path, "/df9_consensus_authorship_public.csv")) %>% 
+  select(article_id) %>% 
+  inner_join(read_csv(paste0(folder_path, "/df9_articledata_0.7_public.csv")), by = "article_id")
+# num authorship articles
+nrow(full_auth)
+citation90 <- read_csv(paste0(folder_path, "/df9_consensus_citation_public.csv")) %>% 
+  select(article_id, in_bib_of_article_id, include_90) %>% 
+  inner_join(read_csv(paste0(folder_path, "/df9_articledata_0.7_public.csv")), by = "article_id") %>% 
+  left_join(full_auth %>% select(article_id) %>% mutate(author = 1)) %>% 
   filter(include_90 | author == 1)
-citation90 %>% nrow()
+# num distinct citation articles
 citation90 %>% select(article_id) %>% distinct() %>% nrow()
-(authorship %>% filter(! grepl("U", AG)) %>% nrow())/nrow(authorship)
-(authorship %>% filter(! grepl("U", ARbin_ethni)) %>% nrow())/nrow(authorship)
-(authorship %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(authorship)
-(authorship %>% filter(! grepl("U", LA_binrace_ethni)) %>% nrow())/nrow(authorship)
-#(citation90 %>% filter(! grepl("U", AG)) %>% nrow())/nrow(citation90)
-(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", AG)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
-(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", ARbin_ethni)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
-(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
-(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_binrace_ethni)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
-
-
-
-nrow(authorship %>% filter(global_north == 1))/nrow(authorship)
-
-authorship %>% group_by(Country) %>% 
+# num total citations
+citation90 %>% nrow()
+# num countries
+full_auth %>% group_by(Country) %>% 
   summarise(n = n()) %>% 
+  ungroup() %>% 
+  mutate(prop = n/sum(n)) %>% 
   arrange(desc(n))
+# frac written by GN senior authors
+nrow(full_auth %>% filter(global_north == 1))/nrow(full_auth)
+# senior author gender inferences
+(full_auth %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(full_auth)
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_genderize)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
+# senior author race inferences
+(full_auth %>% filter(! grepl("U", LA_ethni_race)) %>% nrow())/nrow(full_auth)
+(citation90 %>% distinct(article_id, .keep_all = T) %>% filter(! grepl("U", LA_ethni_race)) %>% nrow())/nrow(citation90 %>% distinct(article_id))
+# men lead authored
+(full_auth %>% filter(grepl("M", FA_genderize)) %>% nrow())/nrow(full_auth)
+# men senior authored
+(full_auth %>% filter(grepl("M", LA_genderize)) %>% nrow())/nrow(full_auth)
+# men lead and senior authored articles
+(authorship %>% filter(grepl("M", FA_genderize) & grepl("M", LA_genderize)) %>% nrow())/nrow(authorship)
+# women lead and senior authored articles
+(authorship %>% filter(grepl("W", FA_genderize) & grepl("W", LA_genderize)) %>% nrow())/nrow(authorship)
 
+#### intersectional analysis ####
 library(MetBrewer)
 la_plot_df <- authorship %>%
   dplyr::select(article_id, PY, LA_genderize, LA_binrace_ethni) %>% 
@@ -592,7 +606,7 @@ gender_main <- generate_fig2(expr(AG), "gender", percentile_consensus = PERC_CON
 
 gender_main_plot <- get.plotdf.general(gender_main, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_main_plot)
+p <- gender_plot(gender_main_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
 ggsave(paste0("figures/for-pub/", folder_path, "-fig2-gender.png"),
        height = 4, width = 6, dpi = 600)
@@ -620,7 +634,7 @@ gender_supp_75 <- generate_fig2(expr(AG), "gender", percentile_consensus = 0.75,
 
 gender_supp_75_plot <- get.plotdf.general(gender_supp_75, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_supp_75_plot)
+p <- gender_plot(gender_supp_75_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-75perc.png"),
        height = 4, width = 6, dpi = 600)
@@ -647,7 +661,7 @@ gender_supp_namsor <- generate_fig2(expr(AG_namsor), "gender", percentile_consen
 
 gender_supp_namsor_plot <- get.plotdf.general(gender_supp_namsor, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_supp_namsor_plot, plot_limits = c(-42, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10)) 
+p <- gender_plot(gender_supp_namsor_plot, plot_limits = c(-55, 15), plot_breaks = c(-50, -40, -30, -20, -10, 0, 10)) 
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-namsor.png"),
        height = 4, width = 6, dpi = 600)
@@ -661,7 +675,8 @@ race_globalnorth_cited_namsor_supp <- generate_fig2(expr(ARbin_namsor), "race", 
 race_global_cited_namsor_supp_plot <- get.plotdf.general(race_global_cited_namsor_supp, 'race', num_comb = 2)
 race_globalnorth_cited_namsor_supp_plot <- get.plotdf.general(race_globalnorth_cited_namsor_supp, 'race', num_comb = 2)
 
-p <- race_plot(race_globalnorth_cited_namsor_supp_plot, race_global_cited_namsor_supp_plot, plot_limits = c(-32, 55))
+p <- race_plot(race_globalnorth_cited_namsor_supp_plot, race_global_cited_namsor_supp_plot, plot_limits = c(-32, 70),
+               plot_breaks = c(-20, 0, 20, 40, 60))
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-namsor.png"),
        height = 4, width = 6)
@@ -673,7 +688,7 @@ gender_gn_supp <- generate_fig2(expr(AG), "gender", percentile_consensus = PERC_
 
 gender_gn_supp_plot <- get.plotdf.general(gender_gn_supp, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_gn_supp_plot, plot_limits = c(-20, 12))
+p <- gender_plot(gender_gn_supp_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-gn-citers.png"),
        height = 4, width = 6, dpi = 600)
@@ -708,6 +723,7 @@ ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-us.png"),
 
 
 ####  vary identity threshold, RUN LAST ####
+# we have not shared these data files publicly hence the use of UT
 # 0.8
 article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.8.csv")) %>% 
   mutate(global_north = ifelse(Country == "united kingdom (great britain)", 1, global_north)) %>% 
@@ -716,26 +732,26 @@ article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.8.csv")) %>%
   filter(!is.na(Country))
 
 authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>% 
-  dplyr::select(article_id) %>% 
-  inner_join(article_data, by = "article_id") %>% # non single authors
+  dplyr::select(UT) %>% 
+  inner_join(article_data, by = "UT") %>% # non single authors
   ungroup() 
 
 citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
   dplyr::select(-PY) %>% 
   # filter to only include citations of valid citing articles, this will be non-single author citers
-  inner_join(article_data %>% rename(in_bib_of_article_id = article_id) %>% dplyr::select(in_bib_of_article_id),
-             by = "in_bib_of_article_id") %>%
+  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
+             by = "in_bib_of_UT") %>%
   # join with cited article data, non-single author citing
-  inner_join(article_data, by = "article_id") %>% 
+  inner_join(article_data, by = "UT") %>% 
   # link citation articles to their source bibliography information
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
-                     in_bib_of_article_id = article_id,
+                     in_bib_of_UT = UT,
                      in_bib_of_first_auth = first_auth,
                      in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
-              dplyr::select(in_bib_of_article_id, 
+              dplyr::select(in_bib_of_UT, 
                             in_bib_of_AG, 
                             in_bib_of_first_auth, 
                             in_bib_of_last_auth,
@@ -753,7 +769,8 @@ gender_80_thresh_supp <- generate_fig2(expr(AG), "gender", percentile_consensus 
 
 gender_80_thresh_supp_plot <- get.plotdf.general(gender_80_thresh_supp, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_80_thresh_supp_plot)
+p <- gender_plot(gender_80_thresh_supp_plot, plot_limits = c(-40, 12),
+                 plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.8.png"),
        height = 4, width = 6, dpi = 600)
@@ -781,26 +798,26 @@ article_data <- read_csv(paste0(folder_path, "/df9_articledata_0.6.csv")) %>%
   filter(! is.na(Country))
 
 authorship <- read_csv(paste0(folder_path, "/df9_consensus_authorship.csv")) %>% 
-  dplyr::select(article_id) %>% 
-  inner_join(article_data, by = "article_id") %>% # non single authors
+  dplyr::select(UT) %>% 
+  inner_join(article_data, by = "UT") %>% # non single authors
   ungroup() 
 
 citation <- read_csv(paste0(folder_path, "/df9_consensus_citation.csv")) %>% 
   dplyr::select(-PY) %>% 
   # filter to only include citations of valid citing articles, this will be non-single author citers
-  inner_join(article_data %>% rename(in_bib_of_article_id = article_id) %>% dplyr::select(in_bib_of_article_id),
-             by = "in_bib_of_article_id") %>%
+  inner_join(article_data %>% rename(in_bib_of_UT = UT) %>% dplyr::select(in_bib_of_UT),
+             by = "in_bib_of_UT") %>%
   # join with cited article data, non-single author citing
-  inner_join(article_data, by = "article_id") %>% 
+  inner_join(article_data, by = "UT") %>% 
   # link citation articles to their source bibliography information
   left_join(article_data %>% 
               rename(in_bib_of_AG = AG,
-                     in_bib_of_article_id = article_id,
+                     in_bib_of_UT = UT,
                      in_bib_of_first_auth = first_auth,
                      in_bib_of_last_auth = last_auth,
                      in_bib_of_country = Country,
                      in_bib_of_global_north = global_north) %>%
-              dplyr::select(in_bib_of_article_id, 
+              dplyr::select(in_bib_of_UT, 
                             in_bib_of_AG, 
                             in_bib_of_first_auth, 
                             in_bib_of_last_auth,
@@ -818,7 +835,8 @@ gender_60_thresh_supp <- generate_fig2(expr(AG), "gender", percentile_consensus 
 
 gender_60_thresh_supp_plot <- get.plotdf.general(gender_60_thresh_supp, 'gender', num_comb = 4)
 
-p <- gender_plot(gender_60_thresh_supp_plot)
+p <- gender_plot(gender_60_thresh_supp_plot, plot_limits = c(-40, 12),
+                 plot_breaks = c(-40, -30, -20, -10, 0, 10))
 p
 ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-gender-0.6.png"),
        height = 4, width = 6, dpi = 600)
