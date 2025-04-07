@@ -122,8 +122,8 @@ la_plot_df <- authorship %>%
   filter(! grepl("U", LA_binrace_ethni)) %>% 
   mutate(LA_genderize = ifelse(LA_genderize == "M", "man", 
                                ifelse(LA_genderize == "W", "woman", "")),
-         LA_binrace_ethni = ifelse(LA_binrace_ethni == "W", "white", 
-                                   ifelse(LA_binrace_ethni == "N", "non-white", ""))) %>% 
+         LA_binrace_ethni = ifelse(LA_binrace_ethni == "W", "White", 
+                                   ifelse(LA_binrace_ethni == "N", "Non-White", ""))) %>% 
   group_by(PY, LA_genderize, LA_binrace_ethni) %>% 
   summarise(count = n()) %>% 
   ungroup() %>% 
@@ -139,8 +139,8 @@ fa_plot_df <-  authorship %>%
   filter(! grepl("U", FA_binrace_ethni)) %>% 
   mutate(FA_genderize = ifelse(FA_genderize == "M", "man", 
                                ifelse(FA_genderize == "W", "woman", "")),
-         FA_binrace_ethni = ifelse(FA_binrace_ethni == "W", "white", 
-                                   ifelse(FA_binrace_ethni == "N", "non-white", ""))) %>% 
+         FA_binrace_ethni = ifelse(FA_binrace_ethni == "W", "White", 
+                                   ifelse(FA_binrace_ethni == "N", "Non-White", ""))) %>% 
   group_by(PY, FA_genderize, FA_binrace_ethni) %>% 
   summarise(count = n()) %>% 
   ungroup() %>% 
@@ -152,11 +152,11 @@ fa_plot_df <-  authorship %>%
   mutate(prop = count/total) 
 
 la_plot_df$intersectional_auth <- factor(la_plot_df$intersectional_auth, 
-                                         levels = c("white man", "non-white man",
-                                                    "white woman", "non-white woman"))
+                                         levels = c("White man", "Non-White man",
+                                                    "White woman", "Non-White woman"))
 fa_plot_df$intersectional_auth <- factor(fa_plot_df$intersectional_auth, 
-                                         levels = c("white man", "non-white man",
-                                                    "white woman", "non-white woman"))
+                                         levels = c("White man", "Non-White man",
+                                                    "White woman", "Non-White woman"))
 
 la_plot_df %>% 
   ggplot(aes(x=PY, y=prop, fill=intersectional_auth)) + 
@@ -329,7 +329,8 @@ get.plotdf.general=function(boot, group, num_comb){
 }
 
 #### function to prep over/under citation info for figure ####
-generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_scope, num_comb){
+generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_scope, num_comb,
+                          remove_self_cite = TRUE){
   
   
   times_cited <- citation %>% 
@@ -370,8 +371,9 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                            authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binarygender({{group_col}})) %>% # group cat of citation
-      filter(is_self_cite == 0, # make sure not self citation & genderized
-             !is.na(GC)) %>% 
+      filter(case_when(remove_self_cite == TRUE ~ is_self_cite == 0, # make sure not self citation & genderized
+                       remove_self_cite == FALSE ~ TRUE)) %>% 
+      filter(! is.na(GC)) %>% 
       # additional filter for scope: global, global north, us or uk -- except this needs to be on ppl doing citing
       filter(case_when(scope == "global" ~ TRUE,
                        scope == "globalnorth" ~ in_bib_of_global_north == 1,
@@ -405,8 +407,9 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                            authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binaryrace({{group_col}})) %>% # group cat
-      filter(is_self_cite == 0, # make sure not self citation & genderized
-             !is.na(GC)) %>% 
+      filter(case_when(remove_self_cite == TRUE ~ is_self_cite == 0, # make sure not self citation & genderized
+                       remove_self_cite == FALSE ~ TRUE)) %>% 
+      filter(! is.na(GC)) %>% 
       # additional filter for scope: global, global north, us or uk -- except this needs to be on ppl doing citing
       filter(case_when(scope == "global" ~ TRUE,
                        scope == "globalnorth" ~ in_bib_of_global_north == 1,
@@ -440,8 +443,9 @@ generate_fig2 <- function(group_col, group, percentile_consensus, scope, cited_s
                            authorship %>% dplyr::select(article_id) %>% mutate(author = 1))) %>%
       rowwise() %>% 
       mutate(GC = transform.cat.binaryracepairs({{group_col}})) %>% # group cat
-      filter(is_self_cite == 0, # make sure not self citation & genderized
-             !is.na(GC)) %>% 
+      filter(case_when(remove_self_cite == TRUE ~ is_self_cite == 0, # make sure not self citation & genderized
+                       remove_self_cite == FALSE ~ TRUE)) %>% 
+      filter(! is.na(GC)) %>% 
       # additional filter for scope: global, global north, us or uk -- except this needs to be on ppl doing citing
       filter(case_when(scope == "global" ~ TRUE,
                        scope == "globalnorth" ~ in_bib_of_global_north == 1,
@@ -724,6 +728,35 @@ globalnorth_cites_by_us_plot %>%
                      expand = c(0,0)) #+ 
 #scale_x_continuous(expand = c(0,0))
 # ggsave(paste0("figures/for-pub/supp/", folder_path, "-fig2-race-us.png"),
+#        height = 4, width = 6)
+
+
+#### include self citations ####
+gender_self_cite <- generate_fig2(expr(AG), "gender", percentile_consensus = PERC_CONSENSUS, 
+                             scope = "global", cited_scope = "global", num_comb = 4, 
+                             remove_self_cite = FALSE)
+
+gender_self_cite_plot <- get.plotdf.general(gender_self_cite, 'gender', num_comb = 4)
+
+p <- gender_plot(gender_self_cite_plot, plot_limits = c(-40, 12), plot_breaks = c(-40, -30, -20, -10, 0, 10))
+p
+# ggsave(paste0("figures/for-pub/", folder_path, "-fig2-gender-selfcite.png"),
+#        height = 4, width = 6, dpi = 600)
+
+#### race main ####
+race_global_cited_selfcite <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
+                                   scope = "globalnorth", cited_scope = "global", num_comb = 2,
+                                   remove_self_cite = FALSE) 
+race_globalnorth_cited_selfcite <- generate_fig2(expr(ARbin_ethni), "race", percentile_consensus = PERC_CONSENSUS, 
+                                        scope = "globalnorth", cited_scope = "globalnorth", num_comb = 2,
+                                        remove_self_cite = FALSE) 
+
+race_global_cited_selfcite_plot <- get.plotdf.general(race_global_cited_selfcite, 'race', num_comb = 2)
+race_globalnorth_cited_selfcite_plot <- get.plotdf.general(race_globalnorth_cited_selfcite, 'race', num_comb = 2)
+
+p <- race_plot(race_globalnorth_cited_selfcite_plot, race_global_cited_selfcite_plot)
+p
+# ggsave(paste0("figures/for-pub/", folder_path, "-fig2-race-selfcite.png"),
 #        height = 4, width = 6)
 
 
