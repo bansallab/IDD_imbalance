@@ -1,6 +1,11 @@
-# Data and code for "The extent of gender and race/ethnicity imbalance in infectious disease dynamics research."
+# "Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices"
 
-This repository provides the source code for the following study: Juliana C Taube*, Alexes Merritt*, Shweta Bansal. "The extent of gender and race/ethnicity imbalance in infectious disease dynamics research." In press at Proceedings of the Royal Society: B. Anonymized data to reproduce the figures in the text are provided in compliance with our data-sharing agreement with Clarivate.
+This repository provides the source code for the following study: Juliana C Taube*, Alexes Merritt*, Shweta Bansal. "Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices." In press at Proceedings of the Royal Society: B. 
+
+Anonymized data to reproduce the figures in the text are provided in compliance with our data-sharing agreement with Clarivate.
+
+The recommended Vancouver citation for this repository is:
+Juliana C Taube*, Alexes Merritt*. Github. 2025. Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices. Available from: https://github.com/bansallab/IDD_imbalance
 
 
 ## Data (`coreidd/`)
