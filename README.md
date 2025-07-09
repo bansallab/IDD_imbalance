@@ -1,6 +1,6 @@
 # Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices
 
-This repository provides the source code for the following study: Juliana C Taube*, Alexes Merritt*, Shweta Bansal. "Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices." In press at Proceedings of the Royal Society: B. 
+This repository provides the source code for the following study: Juliana C Taube*, Alexes Merritt*, Shweta Bansal. Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices. *Proc. R. Soc. B* **292**:20250960. https://doi.org/10.1098/rspb.2025.0960 
 
 Anonymized data to reproduce the figures in the text are provided in compliance with our data-sharing agreement with Clarivate.
 
