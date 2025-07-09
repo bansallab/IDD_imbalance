@@ -4,8 +4,8 @@ This repository provides the source code for the following study: Juliana C Taub
 
 Anonymized data to reproduce the figures in the text are provided in compliance with our data-sharing agreement with Clarivate.
 
-The recommended Vancouver citation for this repository is:
-Juliana C Taube*, Alexes Merritt*. Github. 2025. Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices. Available from: https://github.com/bansallab/IDD_imbalance
+The recommended citation for this repository is:
+Juliana C Taube*, Alexes Merritt*, Shweta Bansal. Github. 2025. Twenty years of infectious disease dynamics research: gender and race imbalances in publication and citation practices. Available from: https://github.com/bansallab/IDD_imbalance
 
 
 ## Data (`coreidd/`)
